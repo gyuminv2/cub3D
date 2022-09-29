@@ -1,0 +1,7 @@
+{
+    "files.associations": {
+        "mlx.h": "c",
+        "ios": "c",
+        "locale": "c"
+    }
+}
