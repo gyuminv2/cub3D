@@ -2,6 +2,7 @@
     "files.associations": {
         "mlx.h": "c",
         "ios": "c",
-        "locale": "c"
+        "locale": "c",
+        "stdio.h": "c"
     }
 }
