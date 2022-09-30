@@ -3,8 +3,8 @@ SRCS = ./main.c
 OBJS = $(SRCS:%.c=%.o)
 
 CC = cc
-CFLAG = -Wall -Wextra -Werror
-\CFLAG = -fsanitize=address -g3
+# CFLAG = -Wall -Wextra -Werror
+CFLAG = -fsanitize=address -g3
 
 RM = rm -rf
 
