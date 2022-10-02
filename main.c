@@ -6,25 +6,42 @@
 # include <math.h>
 # include "./minilibx_opengl_20191021/mlx.h"
 
-/* WASD */
+/**
+ * @brief WASD
+ * 
+ */
 # define W 13
 # define A 0
 # define S 1
 # define D 2
 
-/* ESC */
+/**
+ * @brief ESC
+ * 
+ */
 # define ESC 53
 
+/**
+ * @brief RESOLUTION, MAP_SIZE
+ * 
+ */
+# define WIN_WIDTH 640
+# define WIN_HEIGHT 480
+# define map_Width	5
+# define map_Height	5
+
+/**
+ * @brief TOOL
+ * 
+ */
 # define ERROR "ERROR\n"
 # define GOOD_END 0
 # define BAD_END 1
-# define WIN_WIDTH 640
-# define WIN_HEIGHT 480
 
-int map[5][5] = {
-		{1, 1, 1, 1, 1},
+int map[map_Width][map_Height] = {
+		{1, 1, 0, 1, 1},
 		{1, 0, 0, 0, 1},
-		{1, 0, 'N', 0, 1},
+		{1, 0, 0, 0, 1},
 		{1, 0, 0, 0, 1},
 		{1, 1, 1, 1, 1}
 	};
@@ -52,9 +69,23 @@ typedef struct s_vector
 	double p_dirY;
 	double planeX;
 	double planeY;
-	double playerSpeed;
+	double cameraX;
+	double rayDirectionX;
+	double rayDirectionY;
+	double p_Speed;
 	double rotSpeed;
 }				t_vector;
+
+typedef struct s_dda
+{
+	double sideDistX;
+	double sideDistY;
+	double deltaDistX;
+	double deltaDistY;
+	double perpWallDist;
+	int stepX;
+	int stepY;
+}				t_dda;
 
 typedef struct s_game
 {
@@ -63,11 +94,6 @@ typedef struct s_game
 	int		buf[480][640];
 	int		*wall;
 }				t_game;
-
-void	*mlx_new_window(void *mlx_ptr, int size_x, int size_y, char *title);
-void	*mlx_new_image(void *mlx_ptr, int width, int height);
-char	*mlx_get_data_addr(void *img_ptr, int *bits_per_pixel, int *size_line, int *endian);
-int		mlx_put_image_to_window(void *mlx_ptr, void *win_ptr, void *img_ptr, int x, int y);
 
 int ft_strlen(char *str)
 {
@@ -79,123 +105,104 @@ int ft_strlen(char *str)
 	return (i);
 }
 
-void	print_map(int map[5][5])
-{
-	for (int i = 0; i < 5; i++)
-	{
-		for (int j = 0; j < 5; j++)
-		{
-			printf("%d ", map[i][j]);
-		}
-		printf("\n");
-	}
-}
-
 void	game_init(t_game *game)
 {
-	game->vector.p_posX = 22.0;
-	game->vector.p_posY = 11.5;
+	game->vector.p_posX = 3.5;
+	game->vector.p_posY = 3.5;
 	game->vector.p_dirX = -1.0;
 	game->vector.p_dirY = 0.0;
 	game->vector.planeX = 0.0;
 	game->vector.planeY = 0.66;
-	game->vector.playerSpeed = 0.1;
+	game->vector.p_Speed = 0.1;
 	game->vector.rotSpeed = 0.1;
 }
 
 int	game_loop(t_game *game)
 {
+	t_dda dda;
 	int x;
 
 	x = 0;
 	while (x < WIN_WIDTH)
 	{
-		double cameraX = (2 * x / (double)(WIN_WIDTH)) - 1;
+		game->vector.cameraX = (2 * x / (double)(WIN_WIDTH)) - 1;
 		
-		double rayDirectionX = game->vector.p_dirX + game->vector.planeX * cameraX;
-		double rayDirectionY = game->vector.p_dirY + game->vector.planeY * cameraX;
+		game->vector.rayDirectionX = game->vector.p_dirX + game->vector.planeX * game->vector.cameraX;
+		game->vector.rayDirectionY = game->vector.p_dirY + game->vector.planeY * game->vector.cameraX;
 
 		int mapX = (int)(game->vector.p_posX);
 		int mapY = (int)(game->vector.p_posY);
 
-		double sideDistX;
-		double sideDistY;
-
-		double deltaDistX = fabs(1 / rayDirectionX);
-		double deltaDistY = fabs(1 / rayDirectionY);
-
-		double perpWallDist;
-
-		int stepX;
-		int stepY;
+		dda.deltaDistX = fabs(1 / game->vector.rayDirectionX);
+		dda.deltaDistY = fabs(1 / game->vector.rayDirectionY);
 
 		int hit = 0;
 		int side;
 
-		if (rayDirectionX < 0)
+		if (game->vector.rayDirectionX < 0)
 		{
-			stepX = -1;
-			sideDistX = (game->vector.p_posX - mapX) * deltaDistX;
+			dda.stepX = -1;
+			dda.sideDistX = (game->vector.p_posX - mapX) * dda.deltaDistX;
 		}
 		else
 		{
-			stepX = 1;
-			sideDistX = (mapX + 1.0 - game->vector.p_posX) * deltaDistX;
+			dda.stepX = 1;
+			dda.sideDistX = (mapX + 1.0 - game->vector.p_posX) * dda.deltaDistX;
 		}
-		if (rayDirectionY < 0)
+		if (game->vector.rayDirectionY < 0)
 		{
-			stepY = -1;
-			sideDistY = (game->vector.p_posY - mapY) * deltaDistY;
+			dda.stepY = -1;
+			dda.sideDistY = (game->vector.p_posY - mapY) * dda.deltaDistY;
 		}
 		else
 		{
-			stepY = 1;
-			sideDistY = (mapY + 1.0 - game->vector.p_posY) * deltaDistY;
+			dda.stepY = 1;
+			dda.sideDistY = (mapY + 1.0 - game->vector.p_posY) * dda.deltaDistY;
 		}
 
 		while (hit == 0)
 		{
-			if (sideDistX < sideDistY)
+			if (dda.sideDistX < dda.sideDistY)
 			{
-				sideDistX += deltaDistX;
-				mapX += stepX;
+				dda.sideDistX += dda.deltaDistX;
+				mapX += dda.stepX;
 				side = 0;
 			}
 			else
 			{
-				sideDistY += deltaDistY;
-				mapY += stepY;
+				dda.sideDistY += dda.deltaDistY;
+				mapY += dda.stepY;
 				side = 1;
 			}
 			if (map[mapX][mapY] > 0)
 				hit = 1;
 		}
 		if (side == 0)
-			perpWallDist = (mapX - game->vector.p_posX + (1 - stepX) / 2) / rayDirectionX;
+			dda.perpWallDist = (mapX - game->vector.p_posX + (1 - dda.stepX) / 2) / game->vector.rayDirectionX;
 		else
-			perpWallDist = (mapY - game->vector.p_posY + (1 - stepY) / 2) / rayDirectionY;
-		int lineHeight = (int)(480 / perpWallDist);
-		int drawStart = (-lineHeight / 2) + (480 / 2);
+			dda.perpWallDist = (mapY - game->vector.p_posY + (1 - dda.stepY) / 2) / game->vector.rayDirectionY;
+		int lineHeight = (int)(WIN_HEIGHT / dda.perpWallDist);
+		int drawStart = (-lineHeight / 2) + (WIN_HEIGHT / 2);
 		if (drawStart < 0)
 			drawStart = 0;
-		int drawEnd = (lineHeight / 2) + (480 / 2);
-		if (drawEnd >= 480)
-			drawEnd = 480 - 1;
+		int drawEnd = (lineHeight / 2) + (WIN_HEIGHT / 2);
+		if (drawEnd >= WIN_HEIGHT)
+			drawEnd = WIN_HEIGHT - 1;
 
 		double wallX;
 		if (side == 0)
-			wallX = game->vector.p_posX + perpWallDist * rayDirectionY;
+			wallX = game->vector.p_posY + dda.perpWallDist * game->vector.rayDirectionY;
 		else
-			wallX = game->vector.p_posX + perpWallDist * rayDirectionX;
+			wallX = game->vector.p_posX + dda.perpWallDist * game->vector.rayDirectionX;
 		wallX -= floor(wallX);
 
 		int texX = (int)(wallX * (double)64);
-		if (side == 0 && rayDirectionX > 0)
+		if (side == 0 && game->vector.rayDirectionX > 0)
 			texX = 64 - texX - 1;
-		if (side == 1 && rayDirectionY < 0)
+		if (side == 1 && game->vector.rayDirectionY < 0)
 			texX = 64 - texX - 1;
 		double step = 1.0 * 64 / lineHeight;
-		double texPos = (drawStart - 480 / 2 + lineHeight / 2) * step;
+		double texPos = (drawStart - WIN_HEIGHT / 2 + lineHeight / 2) * step;
 		for (int y = drawStart; y < drawEnd; y++)
 		{
 			int texY = (int)texPos & (64 - 1);
@@ -270,6 +277,5 @@ int main()
 	mlx_loop(game->mlx.ptr);
 
 	free(game);
-	print_map(map);
 	return GOOD_END;
 }
