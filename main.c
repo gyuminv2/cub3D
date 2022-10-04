@@ -122,8 +122,8 @@ int ft_strlen(char *str)
 
 void	game_init(t_game *game)
 {
-	game->vector.p_posX = 3.5;
-	game->vector.p_posY = 3.5;
+	game->vector.p_posX = 2.5;
+	game->vector.p_posY = 2.5;
 	game->vector.p_dirX = -1.0;
 	game->vector.p_dirY = 0.0;
 	game->vector.planeX = 0.0;
@@ -140,7 +140,7 @@ int	game_loop(t_game *game)
 	x = 0;
 	while (x < WIN_WIDTH)
 	{
-		game->vector.cameraX = (2 * x / (double)(WIN_WIDTH)) - 1;
+		game->vector.cameraX = (2 * x / (double)(WIN_WIDTH)) - 1; 
 		
 		game->vector.rayDirectionX = game->vector.p_dirX + game->vector.planeX * game->vector.cameraX;
 		game->vector.rayDirectionY = game->vector.p_dirY + game->vector.planeY * game->vector.cameraX;
