@@ -478,6 +478,6 @@ int main()
     // 아래 코드들이 무슨 역할을 하는 지 궁금하다면 아래 링크에서 정리해둔 내용을 보자.
     // https://42kchoi.tistory.com/229
     mlx_loop_hook(info.mlx, &main_loop, &info);
-    // mlx_hook(info.win, X_EVENT_KEY_PRESS, 0, &key_press, &info);
+    mlx_hook(info.win, X_EVENT_KEY_PRESS, 0, &key_press, &info);
     mlx_loop(info.mlx);    
 }
