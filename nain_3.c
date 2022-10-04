@@ -130,7 +130,7 @@ int calculateAndSaveToMap(t_info *info)
     {
         // cameraX 는 for문의 x값이 카메라 평면 상에 있을 때의 x좌표.
         double cameraX = (2 * x / (double)(screenWidth)) - 1;
-        printf("%f\n", cameraX);
+    
         // cameraPlaneX == 0; cameraPlaneY == 0.66; dirVecX = -1; dirVecY = 0;
         // 광선의 방향은 방향벡터 + 카메라평면 * 배수.
         double rayDirectionX = info->directionVectorX + info->planeX * cameraX;

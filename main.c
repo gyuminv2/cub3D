@@ -52,10 +52,8 @@ typedef struct s_mlx
 	void	*win;
 	void	*img;
 	int		*addr;
-
 	int		w;
 	int		h;
-
 	int		pixel;
 	int		size;
 	int		endian;
@@ -63,35 +61,52 @@ typedef struct s_mlx
 
 typedef struct s_vector
 {
-	double p_posX;
-	double p_posY;
-	double p_dirX;
-	double p_dirY;
-	double planeX;
-	double planeY;
-	double cameraX;
-	double rayDirectionX;
-	double rayDirectionY;
-	double p_Speed;
-	double rotSpeed;
+	double cameraX;			//카메라 평면 상에 x좌표 (-1 ~ 1)
+	double p_posX;			//플레이어의 X위치벡터
+	double p_posY;			//플레이어의 Y위치벡터
+	double p_dirX;			//플레이어의 X방향벡터
+	double p_dirY;			//플레이어의 Y방향벡터
+	double planeX;			//카메라 평면의 X벡터
+	double planeY;			//카메라 평면의 Y벡터
+	double rayDirectionX;	//광선의 X방향벡터 (방향벡터 + 카메라평면 * 배수)
+	double rayDirectionY;	//광선의 Y방향벡터
+	double p_Speed;			//플레이어의 속도
+	double rotSpeed;		//회전 속도
 }				t_vector;
 
 typedef struct s_dda
 {
-	double sideDistX;
-	double sideDistY;
-	double deltaDistX;
-	double deltaDistY;
-	double perpWallDist;
-	int stepX;
-	int stepY;
+	double sideDistX;		//현재 위치에서 다음 X면까지의 거리
+	double sideDistY;		//현재 위치에서 다음 Y면까지의 거리
+	double deltaDistX;		//첫 번째 X면에서 그 다음 X면까지의 광선 이동거리
+	double deltaDistY;		//첫 번째 Y면에서 그 다음 Y면까지의 광선 이동거리
+	double perpWallDist;	//광선의 이동거리계산 변수
+	int mapX;				//좌표상 플레이어의 X위치
+	int mapY;				//좌표상 플레이어의 Y위치
+	int stepX;				//광선의 방향에 따라 결정 (-1 ~ 1)
+	int stepY;				//광선의 방향에 따라 결정 (-1 ~ 1)
 }				t_dda;
+
+typedef struct s_draw
+{
+	int		draw_height;	//벽의 높이
+	int		start;			//그릴 시작점
+	int		end;			//그릴 마지막점
+	int 	hit;			//벽과 부딪혔는지 판별 (0->X, 1->O)
+	int 	side;			//0->X면, 1->Y면
+	int		texX;			//텍스쳐의 X좌표
+	int		texY;			//텍스쳐의 Y좌표
+	double	texPos;			//시작 텍스쳐 좌표
+	double	step;			//픽셀당 텍스쳐 좌표 증가크기
+	double	wallX;			//벽의 좌표
+	int		buf[480][640];
+}				t_draw;
 
 typedef struct s_game
 {
 	t_mlx	mlx;
 	t_vector vector;
-	int		buf[480][640];
+	t_draw	draw;
 	int		*wall;
 }				t_game;
 
@@ -136,8 +151,7 @@ int	game_loop(t_game *game)
 		dda.deltaDistX = fabs(1 / game->vector.rayDirectionX);
 		dda.deltaDistY = fabs(1 / game->vector.rayDirectionY);
 
-		int hit = 0;
-		int side;
+		game->draw.hit = 0;
 
 		if (game->vector.rayDirectionX < 0)
 		{
@@ -160,64 +174,61 @@ int	game_loop(t_game *game)
 			dda.sideDistY = (mapY + 1.0 - game->vector.p_posY) * dda.deltaDistY;
 		}
 
-		while (hit == 0)
+		while (game->draw.hit == 0)
 		{
 			if (dda.sideDistX < dda.sideDistY)
 			{
 				dda.sideDistX += dda.deltaDistX;
 				mapX += dda.stepX;
-				side = 0;
+				game->draw.side = 0;
 			}
 			else
 			{
 				dda.sideDistY += dda.deltaDistY;
 				mapY += dda.stepY;
-				side = 1;
+				game->draw.side = 1;
 			}
 			if (map[mapX][mapY] > 0)
-				hit = 1;
+				game->draw.hit = 1;
 		}
-		if (side == 0)
+		if (game->draw.side == 0)
 			dda.perpWallDist = (mapX - game->vector.p_posX + (1 - dda.stepX) / 2) / game->vector.rayDirectionX;
 		else
 			dda.perpWallDist = (mapY - game->vector.p_posY + (1 - dda.stepY) / 2) / game->vector.rayDirectionY;
-		int lineHeight = (int)(WIN_HEIGHT / dda.perpWallDist);
-		int drawStart = (-lineHeight / 2) + (WIN_HEIGHT / 2);
-		if (drawStart < 0)
-			drawStart = 0;
-		int drawEnd = (lineHeight / 2) + (WIN_HEIGHT / 2);
-		if (drawEnd >= WIN_HEIGHT)
-			drawEnd = WIN_HEIGHT - 1;
-
-		double wallX;
-		if (side == 0)
-			wallX = game->vector.p_posY + dda.perpWallDist * game->vector.rayDirectionY;
+		game->draw.draw_height = (int)(WIN_HEIGHT / dda.perpWallDist);
+		game->draw.start = (-game->draw.draw_height / 2) + (WIN_HEIGHT / 2);
+		if (game->draw.start < 0)
+			game->draw.start = 0;
+		game->draw.end = (game->draw.draw_height / 2) + (WIN_HEIGHT / 2);
+		if (game->draw.end >= WIN_HEIGHT)
+			game->draw.end = WIN_HEIGHT - 1;
+		if (game->draw.side == 0)
+			game->draw.wallX = game->vector.p_posY + dda.perpWallDist * game->vector.rayDirectionY;
 		else
-			wallX = game->vector.p_posX + dda.perpWallDist * game->vector.rayDirectionX;
-		wallX -= floor(wallX);
-
-		int texX = (int)(wallX * (double)64);
-		if (side == 0 && game->vector.rayDirectionX > 0)
-			texX = 64 - texX - 1;
-		if (side == 1 && game->vector.rayDirectionY < 0)
-			texX = 64 - texX - 1;
-		double step = 1.0 * 64 / lineHeight;
-		double texPos = (drawStart - WIN_HEIGHT / 2 + lineHeight / 2) * step;
-		for (int y = drawStart; y < drawEnd; y++)
+			game->draw.wallX = game->vector.p_posX + dda.perpWallDist * game->vector.rayDirectionX;
+		game->draw.wallX -= floor(game->draw.wallX);
+		game->draw.texX = (int)(game->draw.wallX * (double)64);
+		if (game->draw.side == 0 && game->vector.rayDirectionX > 0)
+			game->draw.texX = 64 - game->draw.texX - 1;
+		if (game->draw.side == 1 && game->vector.rayDirectionY < 0)
+			game->draw.texX = 64 - game->draw.texX - 1;
+		game->draw.step = 1.0 * 64 / game->draw.draw_height;
+		game->draw.texPos = (game->draw.start - WIN_HEIGHT / 2 + game->draw.draw_height / 2) * game->draw.step;
+		for (int y = game->draw.start; y < game->draw.end; y++)
 		{
-			int texY = (int)texPos & (64 - 1);
-			texPos += step;
-			int color = game->wall[64 * texY + texX];
-			if (side == 1)
+			game->draw.texY = (int)game->draw.texPos & (64 - 1);
+			game->draw.texPos += game->draw.step;
+			int color = game->wall[64 * game->draw.texY + game->draw.texX];
+			if (game->draw.side == 1)
 				color = (color >> 1) & 8355711;
-			game->buf[y][x] = color;
+			game->draw.buf[y][x] = color;
 		}
 		x++;
 	}
 
-	 for (int y = 0; y < 480; y++)
-        for (int x = 0; x < 640; x++)
-            game->mlx.addr[y * 640 + x] = game->buf[y][x];
+	 for (int y = 0; y < WIN_HEIGHT; y++)
+        for (int x = 0; x < WIN_WIDTH; x++)
+            game->mlx.addr[y * WIN_WIDTH + x] = game->draw.buf[y][x];
 
 	mlx_put_image_to_window(game->mlx.ptr, game->mlx.win, game->mlx.img, 0, 0);
 	return 0;
